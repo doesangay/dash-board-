@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow · Pro Edition</title>
+    
+    <link rel="manifest" href="manifest.json">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f0f4f8;
+            --text-color: #1e293b;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --border-color: rgba(226, 232, 240, 0.8);
+            --text-muted: #64748b;
+            --btn-bg: white;
+            --btn-border: #cbd5e1;
+            --input-bg: #f8fafc;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --shadow-sm: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+        }
+
+        body.dark-mode {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --card-bg: rgba(30, 41, 59, 0.85);
+            --border-color: rgba(51, 65, 85, 0.8);
+            --text-muted: #94a3b8;
+            --btn-bg: #1e293b;
+            --btn-border: #475569;
+            --input-bg: #0f172a;
+            --primary: #6366f1;
+            --primary-hover: #818cf8;
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: var(--text-color);
+        }
+
+        body {
+            background: var(--bg-color);
+            background-image: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+                              radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+            background-attachment: fixed;
+            padding: 2rem 1rem;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            transition: background-color 0.4s ease;
+        }
+
+        .dashboard { max-width: 1400px; width: 100%; }
+
+        header {
+            margin-bottom: 2rem; display: flex; flex-wrap: wrap;
+            justify-content: space-between; align-items: center; gap: 1.5rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem; font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        header p { color: var(--text-muted); font-size: 1.05rem; margin-top: 0.2rem;}
+
+        .header-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+        .action-header-btn {
+            background: var(--btn-bg); border: 1px solid var(--btn-border); color: var(--text-color);
+            padding: 0.6rem 1.4rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s ease; box-shadow: var(--shadow-sm);
+        }
+
+        .action-header-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .excel-btn-import { background: #10b981; border-color: #10b981; color: white; }
+        .excel-btn-export { background: var(--primary); border-color: var(--primary); color: white; }
+        #notifyBtn { background: #f59e0b; color: white; border-color: #f59e0b; }
+        #fileInput { display: none; }
+
+        /* Stat Cards */
+        .stats-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem; margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            padding: 1.5rem; border-radius: 20px; box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color); transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover { transform: translateY(-4px); }
+
+        .stat-label {
+            font-size: 0.85rem; text-transform: uppercase; font-weight: 700;
+            letter-spacing: 0.5px; color: var(--text-muted);
+        }
+
+        .stat-value {
+            font-size: 2.8rem; font-weight: 800; margin-top: 0.5rem; display: block;
+            background: linear-gradient(135deg, var(--text-color), var(--text-muted));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        /* General Cards */
+        .card {
+            background: var(--card-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-radius: 24px; padding: 2rem; box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color); margin-bottom: 2rem;
+        }
+
+        .form-card h2, .table-card h2 {
+            font-size: 1.4rem; font-weight: 700; margin-bottom: 1.5rem; display: flex;
+            align-items: center; justify-content: space-between;
+        }
+
+        /* Form Styles */
+        .form-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem; align-items: end;
+        }
+
+        .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+
+        .form-group label {
+            font-size: 0.85rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--text-muted);
+        }
+
+        .form-group input, .form-group select {
+            padding: 0.8rem 1.2rem; border: 2px solid var(--border-color); border-radius: 12px;
+            font-size: 0.95rem; background: var(--input-bg); color: var(--text-color); transition: all 0.2s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .btn-submit {
+            background: var(--primary); color: white; border: none; padding: 0.9rem 2rem;
+            border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+            box-shadow: var(--shadow-sm); width: 100%; white-space: nowrap;
+        }
+
+        .btn-submit:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+        .btn-danger {
+            background: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem;
+            border-radius: 50px; font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+        .btn-danger:hover { background: #dc2626; }
+
+        .filter-group select {
+            padding: 0.5rem 1rem; border-radius: 20px; border: 1px solid var(--border-color);
+            background: var(--input-bg); color: var(--text-color);
+        }
+
+        /* Table Styles */
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th {
+            padding: 1rem; border-bottom: 2px solid var(--border-color); color: var(--text-muted);
+            font-weight: 600; text-transform: uppercase; font-size: 0.85rem;
+        }
+        td { padding: 1rem; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; }
+        tr:hover td { background: rgba(0,0,0,0.02); }
+        body.dark-mode tr:hover td { background: rgba(255,255,255,0.02); }
+
+        .status-badge { padding: 0.4rem 0.8rem; border-radius: 50px; font-size: 0.8rem; font-weight: 600; }
+        .status-completed { background: #d1fae5; color: #065f46; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        body.dark-mode .status-completed { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        body.dark-mode .status-pending { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        
+        .action-btn { background: transparent; border: none; cursor: pointer; font-size: 1.1rem; padding: 4px;}
+
+        /* Charts */
+        .charts-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-bottom: 2rem; }
+        .chart-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.3px; }
+        canvas { max-height: 250px; max-width: 100%; }
+
+        /* Reminder Banner */
+        .reminder-banner {
+            background: #ffedd5; border-left: 6px solid #f97316; padding: 1rem 2rem;
+            border-radius: 16px; margin-bottom: 1.8rem; display: flex; align-items: center;
+            justify-content: space-between; flex-wrap: wrap; gap: 1rem; font-weight: 500; color: #7b341e;
+        }
+        .reminder-text { display: flex; align-items: center; gap: 10px; }
+        .reminder-banner button {
+            background: white; border: 1px solid #f97316; padding: 0.4rem 1.2rem;
+            border-radius: 40px; font-weight: 600; color: #f97316; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header>
+            <div>
+                <h1>📋 TaskFlow</h1>
+                <p>Track, manage, and export your daily goals.</p>
+            </div>
+            <div class="header-actions">
+                <button class="action-header-btn" id="themeToggle">🌙 Dark Mode</button>
+                <button class="action-header-btn" id="notifyBtn" style="display: none;">🔔 Enable Alerts</button>
+                <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
+                <button class="action-header-btn excel-btn-import" id="importExcelBtn">📤 Import</button>
+                <button class="action-header-btn excel-btn-export" id="exportExcelBtn">📥 Export</button>
+            </div>
+        </header>
+
+        <div id="reminderBanner" class="reminder-banner" style="display: flex;">
+            <span class="reminder-text">⏰ <span id="pendingCountReminder">2</span> pending task(s) — Your work is pending!</span>
+            <button id="dismissReminder">dismiss</button>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <span class="stat-label">Today’s hours</span>
+                <span class="stat-value" id="totalHoursToday">1.5</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Completed</span>
+                <span class="stat-value" id="completedCount">2</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Pending</span>
+                <span class="stat-value" id="pendingCount">2</span>
+            </div>
+        </div>
+
+        <div class="card form-card">
+            <h2>➕ Add new task</h2>
+            <form id="taskForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="taskDate">Date</label>
+                        <input type="date" id="taskDate" required="">
+                    </div>
+                    <div class="form-group">
+                        <label for="taskName">Task name</label>
+                        <input type="text" id="taskName" placeholder="e.g. write report" required="">
+                    </div>
+                    <div class="form-group">
+                        <label for="taskCategory">Category</label>
+                        <select id="taskCategory">
+                            <option value="Work">💼 Work</option>
+                            <option value="Personal">🧘 Personal</option>
+                            <option value="Study">📚 Study</option>
+                            <option value="Other">🔧 Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="taskHours">Hours spent</label>
+                        <input type="number" id="taskHours" step="0.5" min="0.5" max="24" required="">
+                    </div>
+                    <div class="form-group">
+                        <label for="taskStatus">Status</label>
+                        <select id="taskStatus">
+                            <option value="Completed">✅ Completed</option>
+                            <option value="Pending" selected="">⏳ Pending</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button type="submit" class="btn-submit">✚ Save Task</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="charts-row">
+            <div class="card chart-card">
+                <h3>📊 Time per day (Last 7 Days)</h3>
+                <canvas id="barChart" width="589" height="200"></canvas>
+            </div>
+            <div class="card chart-card">
+                <h3>🥧 Total by category</h3>
+                <canvas id="pieChart" width="589" height="200"></canvas>
+            </div>
+        </div>
+
+        <div class="card table-card">
+            <h2>
+                📌 Task History 
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <span class="filter-group">
+                        <select id="filterCategory">
+                            <option value="All">All Categories</option>
+                            <option value="Work">Work</option>
+                            <option value="Personal">Personal</option>
+                            <option value="Study">Study</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </span>
+                    <button id="clearAllBtn" class="btn-danger">🗑️ Clear All</button>
+                </div>
+            </h2>
+            <div class="table-wrapper">
+                <table id="taskTable">
+                    <thead>
+                        <tr>
+                            <th class="done-checkbox">Done</th>
+                            <th>Date</th>
+                            <th>Task</th>
+                            <th>Category</th>
+                            <th>Hours</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="taskTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== THEME TOGGLE ==========
+        const themeToggle = document.getElementById('themeToggle');
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            themeToggle.innerText = '☀️ Light Mode';
+        }
+
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            if (document.body.classList.contains('dark-mode')) {
+                localStorage.setItem('theme', 'dark');
+                themeToggle.innerText = '☀️ Light Mode';
+            } else {
+                localStorage.setItem('theme', 'light');
+                themeToggle.innerText = '🌙 Dark Mode';
+            }
+            updateCharts();
+        });
+
+        // ========== DATA ==========
+        let tasks = [];
+        let lastNotifiedCount = -1; 
+
+        function loadTasks() {
+            const stored = localStorage.getItem('taskflow_tasks_pro');
+            if (stored) {
+                try { tasks = JSON.parse(stored); } catch (e) { tasks = []; }
+            } else {
+                tasks = [
+                    { id: Date.now() - 100000, date: new Date().toISOString().slice(0,10), name: 'welcome to taskflow', category: 'Other', hours: 1, status: 'Completed' },
+                ];
+            }
+            saveTasks();
+        }
+
+        function saveTasks() {
+            localStorage.setItem('taskflow_tasks_pro', JSON.stringify(tasks));
+        }
+
+        // ========== NOTIFICATIONS & SERVICE WORKER ==========
+        const notifyBtn = document.getElementById('notifyBtn');
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker Registered!'))
+                    .catch(err => console.error('Service Worker Failed:', err));
+            });
+        }
+
+        if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+            notifyBtn.style.display = 'flex';
+        }
+
+        notifyBtn.addEventListener('click', async () => {
+            const permission = await Notification.requestPermission();
+            if (permission === "granted") {
+                notifyBtn.style.display = 'none';
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.ready.then(registration => {
+                        registration.showNotification("✅ Connected!", {
+                            body: "TaskFlow is now sending alerts directly to your device.",
+                            icon: "https://cdn-icons-png.flaticon.com/512/906/906334.png",
+                            vibrate: [200, 100, 200]
+                        });
+                    });
+                }
+            }
+        });
+
+        function sendDeviceNotification(pendingDates) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                // We only notify if there are actually dates pending
+                if (pendingDates.length > 0) {
+                    const dateList = pendingDates.join(", ");
+                    const message = `Reminder: You have pending tasks on ${dateList}. Don't forget to finish them!`;
+
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.ready.then(registration => {
+                            registration.showNotification("⏳ Task Pending!", {
+                                body: message,
+                                icon: "https://cdn-icons-png.flaticon.com/512/906/906334.png",
+                                vibrate: [200, 100, 200],
+                                tag: "taskflow-pending-date", // Prevents duplicate notifications
+                                renotify: true
+                            });
+                        });
+                    }
+                }
+            }
+        }
+
+        // ========== RENDER TABLE ==========
+        const tbody = document.getElementById('taskTableBody');
+        const filterCategory = document.getElementById('filterCategory');
+        
+        filterCategory.addEventListener('change', renderTable);
+
+        function renderTable() {
+            tbody.innerHTML = '';
+            const today = new Date().toISOString().slice(0,10);
+            let totalHoursToday = 0, completed = 0, pending = 0;
+            
+            // Create a Set to store unique dates that have pending tasks
+            let pendingDates = new Set();
+
+            tasks.forEach(task => {
+                if (task.date === today) totalHoursToday += Number(task.hours);
+                
+                if (task.status === 'Completed') {
+                    completed++;
+                } else {
+                    pending++;
+                    pendingDates.add(task.date); // Add the date to our "Pending" list
+                }
+            });
+
+            // Update Stats
+            document.getElementById('totalHoursToday').innerText = totalHoursToday.toFixed(1);
+            document.getElementById('completedCount').innerText = completed;
+            document.getElementById('pendingCount').innerText = pending;
+            document.getElementById('pendingCountReminder').innerText = pending;
+
+            const reminderBanner = document.getElementById('reminderBanner');
+            if (pending > 0) {
+                reminderBanner.style.display = 'flex';
+                // Send the list of specific dates to the notification function
+                sendDeviceNotification(Array.from(pendingDates));
+            } else {
+                reminderBanner.style.display = 'none';
+            }
+
+            let filteredTasks = [...tasks];
+            const activeFilter = filterCategory.value;
+            if (activeFilter !== 'All') {
+                filteredTasks = filteredTasks.filter(t => t.category === activeFilter);
+            }
+
+            filteredTasks.sort((a,b) => new Date(b.date) - new Date(a.date));
+            
+            filteredTasks.forEach(task => {
+                const row = document.createElement('tr');
+                const checkedAttr = task.status === 'Completed' ? 'checked' : '';
+                row.innerHTML = `
+                    <td class="done-checkbox"><input type="checkbox" class="status-toggle" data-id="${task.id}" ${checkedAttr}></td>
+                    <td>${task.date}</td>
+                    <td><strong>${escapeHtml(task.name)}</strong></td>
+                    <td>${task.category}</td>
+                    <td>${task.hours}h</td>
+                    <td><span class="status-badge ${task.status === 'Completed' ? 'status-completed' : 'status-pending'}">${task.status}</span></td>
+                    <td>
+                        <button class="action-btn edit-btn" data-id="${task.id}" title="edit">✏️</button>
+                        <button class="action-btn delete-btn" data-id="${task.id}" title="delete">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.querySelectorAll('.status-toggle').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const id = Number(e.target.dataset.id);
+                    const task = tasks.find(t => t.id === id);
+                    if (task) {
+                        task.status = e.target.checked ? 'Completed' : 'Pending';
+                        saveTasks();
+                        renderTable();
+                    }
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => deleteTask(Number(e.target.dataset.id))));
+            document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', (e) => editTask(Number(e.target.dataset.id))));
+            updateCharts();
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe.replace(/[&<>"']/g, m => ({'&': '&amp;','<': '&lt;','>': '&gt;','"': '&quot;',"'": '&#039;'})[m]);
+        }
+
+        // ========== CRUD ==========
+        document.getElementById('clearAllBtn').addEventListener('click', () => {
+            if(confirm("Are you sure you want to delete ALL tasks?")) {
+                tasks = []; saveTasks(); renderTable();
+            }
+        });
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            saveTasks(); renderTable();
+        }
+
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+            document.getElementById('taskDate').value = task.date;
+            document.getElementById('taskName').value = task.name;
+            document.getElementById('taskCategory').value = task.category;
+            document.getElementById('taskHours').value = task.hours;
+            document.getElementById('taskStatus').value = task.status;
+            deleteTask(id);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        document.getElementById('taskForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const newTask = {
+                id: Date.now(),
+                date: document.getElementById('taskDate').value,
+                name: document.getElementById('taskName').value.trim(),
+                category: document.getElementById('taskCategory').value,
+                hours: parseFloat(document.getElementById('taskHours').value),
+                status: document.getElementById('taskStatus').value
+            };
+            tasks.push(newTask);
+            saveTasks();
+            renderTable();
+            this.reset();
+            document.getElementById('taskDate').value = new Date().toISOString().slice(0,10);
+            document.getElementById('taskStatus').value = 'Pending';
+        });
+
+        // ========== EXCEL ==========
+        document.getElementById('exportExcelBtn').addEventListener('click', function() {
+            const wsData = [['Date', 'Task', 'Category', 'Hours', 'Status']];
+            tasks.forEach(t => wsData.push([t.date, t.name, t.category, t.hours, t.status]));
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, 'Tasks');
+            XLSX.writeFile(wb, 'TaskFlow_export.xlsx');
+        });
+
+        document.getElementById('importExcelBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (loadEvent) => {
+                try {
+                    const data = new Uint8Array(loadEvent.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
+                    
+                    const newTasks = [];
+                    for (let i = 1; i < rows.length; i++) {
+                        const r = rows[i];
+                        if (r.length < 5 || !r[0] || !r[1] || isNaN(parseFloat(r[3]))) continue;
+                        let status = String(r[4]).toLowerCase().includes('comp') ? 'Completed' : 'Pending';
+                        newTasks.push({
+                            id: Date.now() + i + Math.random(), 
+                            date: String(r[0]).trim(),
+                            name: String(r[1]).trim(),
+                            category: ['Work', 'Personal', 'Study', 'Other'].includes(String(r[2]).trim()) ? String(r[2]).trim() : 'Other',
+                            hours: parseFloat(r[3]),
+                            status: status
+                        });
+                    }
+                    if (newTasks.length) {
+                        tasks = [...tasks, ...newTasks];
+                        saveTasks(); renderTable();
+                        alert(`Imported ${newTasks.length} tasks.`);
+                    }
+                } catch (err) { alert('Failed to parse Excel file.'); }
+                document.getElementById('fileInput').value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        document.getElementById('dismissReminder').addEventListener('click', () => {
+            document.getElementById('reminderBanner').style.display = 'none';
+        });
+
+        // ========== CHARTS ==========
+        let barChart, pieChart;
+        function updateCharts() {
+            const last7Days = [];
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                last7Days.push(d.toISOString().slice(0,10));
+            }
+
+            const hoursPerDay = last7Days.map(date => tasks.filter(t => t.date === date).reduce((sum, t) => sum + t.hours, 0));
+            const categories = ['Work', 'Personal', 'Study', 'Other'];
+            const categoryData = categories.map(cat => tasks.filter(t => t.category === cat).reduce((sum, t) => sum + t.hours, 0));
+            const textColor = document.body.classList.contains('dark-mode') ? '#f8fafc' : '#1e293b';
+
+            if (barChart) barChart.destroy();
+            if (pieChart) pieChart.destroy();
+
+            barChart = new Chart(document.getElementById('barChart'), {
+                type: 'bar',
+                data: {
+                    labels: last7Days.map(d => d.slice(5)),
+                    datasets: [{ label: 'hours', data: hoursPerDay, backgroundColor: '#3b82f6', borderRadius: 8 }]
+                },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: textColor } }, y: { ticks: { color: textColor } } } }
+            });
+
+            pieChart = new Chart(document.getElementById('pieChart'), {
+                type: 'pie',
+                data: {
+                    labels: categories,
+                    datasets: [{ data: categoryData, backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#a78bfa'], borderColor: 'transparent' }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: textColor } } } }
+            });
+        }
+
+        // ========== INIT ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('taskDate').value = new Date().toISOString().slice(0,10);
+            loadTasks();
+            renderTable();
+        });
+    </script>
+</body>
+</html>
